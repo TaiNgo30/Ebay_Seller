@@ -93,7 +93,11 @@ export const openapi = {
                                     title: { type: 'string' },
                                     price: { type: 'number' },
                                     quantity: { type: 'integer' },
-                                    attributes: { type: 'string', description: 'JSON string' },
+                                    attributes: { type: 'string' },
+                                    specifics: { type: 'string' },
+                                    variants: { type: 'string', description: 'JSON array of variants' },
+                                    isDraft: { type: 'boolean' },
+                                    scheduledAt: { type: 'string', format: 'date-time' },
                                     images: { type: 'array', items: { type: 'string', format: 'binary' } }
                                 },
                                 required: ['title', 'price']
@@ -103,6 +107,32 @@ export const openapi = {
                 },
                 responses: { '201': { description: 'Product created' } }
             }
+        },
+        '/api/policies': {
+            get: { summary: 'List business policies', security: [{ bearerAuth: [] }], responses: { '200': { description: 'Policies' } } },
+            post: { summary: 'Create policy', security: [{ bearerAuth: [] }], requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { type: { type: 'string', enum: ['payment', 'shipping', 'return'] }, name: { type: 'string' }, data: { type: 'object' } }, required: ['type', 'name'] } } } }, responses: { '201': { description: 'Policy' } } }
+        },
+        '/api/policies/{id}': {
+            put: { summary: 'Update policy', security: [{ bearerAuth: [] }], parameters: [{ name: 'id', in: 'path', required: true }], responses: { '200': { description: 'Policy' } } },
+            delete: { summary: 'Delete policy', security: [{ bearerAuth: [] }], parameters: [{ name: 'id', in: 'path', required: true }], responses: { '200': { description: 'OK' } } }
+        },
+        '/api/returns': {
+            get: { summary: 'List returns for seller', security: [{ bearerAuth: [] }], responses: { '200': { description: 'Returns' } } }
+        },
+        '/api/returns/{id}': {
+            put: { summary: 'Update return status', security: [{ bearerAuth: [] }], parameters: [{ name: 'id', in: 'path', required: true }], requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { status: { type: 'string', enum: ['approved', 'rejected', 'received', 'refunded'] }, rmaNumber: { type: 'string' } }, required: ['status'] } } } }, responses: { '200': { description: 'Return' } } }
+        },
+        '/api/messages': {
+            get: { summary: 'List messages in thread', security: [{ bearerAuth: [] }], parameters: [{ name: 'threadId', in: 'query', required: true }], responses: { '200': { description: 'Messages' } } },
+            post: { summary: 'Send message', security: [{ bearerAuth: [] }], requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { threadId: { type: 'string' }, receiverId: { type: 'string' }, content: { type: 'string' }, productId: { type: 'string' }, orderId: { type: 'string' } }, required: ['threadId', 'receiverId', 'content'] } } } }, responses: { '201': { description: 'Message' } } }
+        },
+        '/api/store-categories': {
+            get: { summary: 'List store categories', security: [{ bearerAuth: [] }], responses: { '200': { description: 'Categories' } } },
+            post: { summary: 'Create store category', security: [{ bearerAuth: [] }], requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { name: { type: 'string' }, parentId: { type: 'string' } }, required: ['name'] } } } }, responses: { '201': { description: 'Category' } } }
+        },
+        '/api/store-categories/{id}': {
+            put: { summary: 'Update store category', security: [{ bearerAuth: [] }], parameters: [{ name: 'id', in: 'path', required: true }], responses: { '200': { description: 'Category' } } },
+            delete: { summary: 'Delete store category', security: [{ bearerAuth: [] }], parameters: [{ name: 'id', in: 'path', required: true }], responses: { '200': { description: 'OK' } } }
         },
         '/api/products/{id}': {
             put: { summary: 'Update product', security: [{ bearerAuth: [] }], parameters: [{ name: 'id', in: 'path', required: true }], responses: { '200': { description: 'Product' } } },
@@ -125,6 +155,7 @@ export const openapi = {
             }
         },
         '/api/coupons': {
+            get: { summary: 'List coupons', security: [{ bearerAuth: [] }], responses: { '200': { description: 'Coupons' } } },
             post: {
                 summary: 'Create coupon', security: [{ bearerAuth: [] }],
                 requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { code: { type: 'string' }, discountPercent: { type: 'integer' }, startDate: { type: 'string' }, endDate: { type: 'string' }, maxUsage: { type: 'integer' }, productId: { type: 'string' } }, required: ['code', 'discountPercent', 'startDate', 'endDate', 'productId'] } } } },

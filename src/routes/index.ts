@@ -9,6 +9,10 @@ import reviewRoutes from './review.routes.js';
 import feedbackRoutes from './feedback.routes.js';
 import reportRoutes from './report.routes.js';
 import disputeRoutes from './dispute.routes.js';
+import policyRoutes from './policy.routes.js';
+import returnRoutes from './return.routes.js';
+import messageRoutes from './message.routes.js';
+import storeCategoryRoutes from './storeCategory.routes.js';
 
 const router = Router();
 
@@ -22,5 +26,9 @@ router.use('/reviews', reviewRoutes);
 router.use('/feedback', feedbackRoutes);
 router.use('/reports', reportRoutes);
 router.use('/disputes', disputeRoutes);
+router.use('/policies', policyRoutes);
+router.use('/returns', returnRoutes);
+router.use('/messages', messageRoutes);
+router.use('/store-categories', storeCategoryRoutes);
 
 export default router; 

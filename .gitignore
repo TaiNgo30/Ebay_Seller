@@ -9,11 +9,15 @@ yarn-error.log*
 # Build output
 /dist/
 /.turbo/
+/frontend/.next/
+/frontend/out/
+/frontend/node_modules/
 
 # Env and secrets
 .env
 .env.local
 .env.*.local
+/frontend/.env.local
 
 # Logs
 logs/

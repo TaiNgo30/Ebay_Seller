@@ -19,6 +19,13 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 const AttributeValueSchema = z.union([z.string(), z.number(), z.boolean()]);
+const VariantSchema = z.object({
+    sku: z.string().optional(),
+    attributes: z.record(z.string(), AttributeValueSchema),
+    price: z.coerce.number().optional(),
+    quantity: z.coerce.number().int().min(0).optional(),
+    images: z.array(z.string()).optional()
+});
 
 const ProductCreateSchema = z.object({
     title: z.string().min(2),
@@ -26,42 +33,55 @@ const ProductCreateSchema = z.object({
     price: z.coerce.number().min(0),
     categoryId: z.string().optional(),
     isAuction: z.coerce.boolean().optional(),
+    startingBid: z.coerce.number().optional(),
+    reservePrice: z.coerce.number().optional(),
+    bestOfferEnabled: z.coerce.boolean().optional(),
     auctionEndTime: z.coerce.date().optional(),
     attributes: z
         .union([
             z.record(z.string(), AttributeValueSchema),
-            z
-                .string()
-                .transform((v) => JSON.parse(v))
-                .pipe(z.record(z.string(), AttributeValueSchema))
+            z.string().transform((v) => JSON.parse(v)).pipe(z.record(z.string(), AttributeValueSchema))
         ])
         .optional(),
+    specifics: z
+        .union([
+            z.record(z.string(), AttributeValueSchema),
+            z.string().transform((v) => JSON.parse(v)).pipe(z.record(z.string(), AttributeValueSchema))
+        ])
+        .optional(),
+    variants: z
+        .union([
+            z.array(VariantSchema),
+            z.string().transform((v) => JSON.parse(v)).pipe(z.array(VariantSchema))
+        ])
+        .optional(),
+    isDraft: z.coerce.boolean().optional(),
+    scheduledAt: z.coerce.date().optional(),
     quantity: z.coerce.number().int().min(0).default(0)
 });
 
 router.post('/', authMiddleware, requireSellerVerified, productCreateLimiter, verifyRecaptcha, upload.array('images', 8), async (req: AuthRequest, res) => {
     const parse = ProductCreateSchema.safeParse(req.body);
     if (!parse.success) return res.status(400).json({ message: parse.error.message });
-    const { title, description, price, categoryId, isAuction, auctionEndTime, attributes, quantity } = parse.data as any;
-
-    // Enforce listing limits
     const user = req.user!;
-    const activeCount = await ProductModel.countDocuments({ sellerId: user._id, status: 'active' });
-    if (activeCount >= user.sellerLimits.maxActiveListings) {
-        return res.status(403).json({ message: 'Active listings limit reached for your rank' });
+    const { isDraft, scheduledAt, quantity, ...rest } = parse.data as any;
+
+    // Enforce listing limits only when activating listing
+    if (!isDraft) {
+        const activeCount = await ProductModel.countDocuments({ sellerId: user._id, status: 'active' });
+        if (activeCount >= user.sellerLimits.maxActiveListings) {
+            return res.status(403).json({ message: 'Active listings limit reached for your rank' });
+        }
     }
 
     const images = (req.files as Express.Multer.File[] | undefined)?.map((f) => `/uploads/${f.filename}`) || [];
     const product = await ProductModel.create({
-        title,
-        description,
-        price,
+        ...rest,
         images,
-        categoryId,
         sellerId: user._id,
-        isAuction: !!isAuction,
-        auctionEndTime,
-        attributes: attributes || {}
+        status: isDraft ? 'hidden' : 'active',
+        isDraft: !!isDraft,
+        scheduledAt
     });
     await InventoryModel.create({ productId: product._id, quantity });
     res.status(201).json(product);
@@ -73,16 +93,30 @@ const ProductUpdateSchema = z.object({
     price: z.coerce.number().min(0).optional(),
     categoryId: z.string().optional(),
     isAuction: z.coerce.boolean().optional(),
+    startingBid: z.coerce.number().optional(),
+    reservePrice: z.coerce.number().optional(),
+    bestOfferEnabled: z.coerce.boolean().optional(),
     auctionEndTime: z.coerce.date().optional(),
     attributes: z
         .union([
             z.record(z.string(), AttributeValueSchema),
-            z
-                .string()
-                .transform((v) => JSON.parse(v))
-                .pipe(z.record(z.string(), AttributeValueSchema))
+            z.string().transform((v) => JSON.parse(v)).pipe(z.record(z.string(), AttributeValueSchema))
         ])
-        .optional()
+        .optional(),
+    specifics: z
+        .union([
+            z.record(z.string(), AttributeValueSchema),
+            z.string().transform((v) => JSON.parse(v)).pipe(z.record(z.string(), AttributeValueSchema))
+        ])
+        .optional(),
+    variants: z
+        .union([
+            z.array(VariantSchema),
+            z.string().transform((v) => JSON.parse(v)).pipe(z.array(VariantSchema))
+        ])
+        .optional(),
+    isDraft: z.coerce.boolean().optional(),
+    scheduledAt: z.coerce.date().optional()
 });
 
 router.put('/:id', authMiddleware, requireSellerVerified, upload.array('images', 8), async (req: AuthRequest, res) => {
@@ -116,7 +150,7 @@ router.put('/:id/hide', authMiddleware, requireSellerVerified, async (req: AuthR
 });
 
 router.put('/:id/unhide', authMiddleware, requireSellerVerified, async (req: AuthRequest, res) => {
-    const product = await ProductModel.findOneAndUpdate({ _id: req.params.id, sellerId: req.user!._id }, { status: 'active' }, { new: true });
+    const product = await ProductModel.findOneAndUpdate({ _id: req.params.id, sellerId: req.user!._id }, { status: 'active', isDraft: false }, { new: true });
     if (!product) return res.status(404).json({ message: 'Product not found' });
     res.json(product);
 });
